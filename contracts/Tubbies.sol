@@ -11,29 +11,34 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
     using Strings for uint256;
 
-    string public baseURI;
     uint constant public TOKEN_LIMIT = 20e3;
-    uint constant public REVEAL_BATCH_SIZE = 1e3;
+    uint constant public REVEAL_BATCH_SIZE = 500;
     bytes32 immutable public merkleRoot;
     uint immutable public startSaleTimestamp;
-    string constant fallbackURI = "url";
+    string public baseURI;
+    string public unrevealedURI;
 
     // Constants from https://docs.chain.link/docs/vrf-contracts/
-    bytes32 constant private s_keyHash = 0xAA77729D3466CA35AE8D28B3BBAC7CC36A5031EFDC430821C02BC31A238AF445;
-    uint256 constant private s_fee = 2e18;
-    address constant private linkToken = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
-    address constant private linkCoordinator = 0xf0d54349aDdcf704F77AE15b96510dEA15cb7952;
+    bytes32 immutable private s_keyHash;
+    address immutable private linkToken;
+    address immutable private linkCoordinator;
 
-    constructor(bytes32 _merkleRoot)
+    constructor(bytes32 _merkleRoot, string memory _baseURI, string memory _unrevealedURI, bytes32 _s_keyHash, address _linkToken, address _linkCoordinator)
         ERC721("Tubby Cats", "TUBBY")
-        VRFConsumerBase(linkCoordinator, linkToken)
+        VRFConsumerBase(_linkCoordinator, _linkToken)
     {
+        linkToken = _linkToken;
+        linkCoordinator = _linkCoordinator;
+        s_keyHash = _s_keyHash;
         merkleRoot = _merkleRoot;
         startSaleTimestamp = block.timestamp + 2 days;
+        unrevealedURI = _unrevealedURI;
+        baseURI = _baseURI;
     }
 
-    function setBaseURI(string memory newBaseURI) external onlyRealOwner {
+    function setURIs(string memory newBaseURI, string memory newUnrevealedURI) external onlyRealOwner {
         baseURI = newBaseURI;
+        unrevealedURI = newUnrevealedURI;
     }
 
     function retrieveFunds(address payable to) external onlyRealOwner {
@@ -102,7 +107,8 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
     mapping(uint => bytes32) public batchToSeedRequest;
     // Can be made callable by everyone but restricting to onlyRealOwner for extra security
     // batchNumber belongs to [0, TOKEN_LIMIT/REVEAL_BATCH_SIZE]
-    function requestRandomSeed(uint batchNumber) public onlyRealOwner returns (bytes32 requestId) {
+    // if fee is incorrect chainlink's coordinator will just revert the tx so it's good
+    function requestRandomSeed(uint batchNumber, uint s_fee) public onlyRealOwner returns (bytes32 requestId) {
         require(totalMinted >= (batchNumber + 1) * REVEAL_BATCH_SIZE); // TEST: It works on the last mint
 
         // checking LINK balance
@@ -141,7 +147,7 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
     // but gas cost here doesn't matter so we go for the standard approach
     function tokenURI(uint256 id) public view override returns (string memory) {
         if(id > lastTokenRevealed){
-            return fallbackURI;
+            return unrevealedURI;
         } else {
             return string(abi.encodePacked(baseURI, redirect[id].toString()));
         }

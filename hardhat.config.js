@@ -1,5 +1,6 @@
 require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-etherscan");
+require("hardhat-gas-reporter");
 require('dotenv').config();
 
 // This is a sample Hardhat task. To learn how to create your own go to
@@ -33,5 +34,9 @@ module.exports = {
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN
+  },
+  gasReporter: {
+    currency: 'USD',
+    gasPrice: 100
   }
 };

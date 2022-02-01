@@ -19,3 +19,9 @@ npx hardhat help
 - [x] Whitelist
 - [x] Multisig super-ownership
 - [x] VRF progressive revealing
+- [ ] Airdrop
+
+## Tests
+- [x] Ownership
+- [ ] Deployment on testnet
+- [ ] Merkle + full minting
