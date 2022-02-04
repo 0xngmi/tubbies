@@ -12,7 +12,7 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
     using Strings for uint256;
 
     uint constant public TOKEN_LIMIT = 20e3;
-    uint constant public REVEAL_BATCH_SIZE = 500;
+    uint constant public REVEAL_BATCH_SIZE = 1e3;
     bytes32 immutable public merkleRoot;
     uint immutable public startSaleTimestamp;
     string public baseURI;
@@ -104,7 +104,8 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
 
     // RANDOMIZATION
 
-    mapping(uint => bytes32) public batchToSeedRequest;
+    mapping(bytes32 => uint) public requestIdToBatch;
+    mapping(uint => uint8) public batchStatus; // 0 -> unrequested, 1 -> requested, 2 -> received
     // Can be made callable by everyone but restricting to onlyRealOwner for extra security
     // batchNumber belongs to [0, TOKEN_LIMIT/REVEAL_BATCH_SIZE]
     // if fee is incorrect chainlink's coordinator will just revert the tx so it's good
@@ -114,32 +115,26 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
         // checking LINK balance
         require(IERC20(linkToken).balanceOf(address(this)) >= s_fee, "Not enough LINK to pay fee");
 
-        require(batchToSeedRequest[batchNumber] == 0, "Already requested");
+        require(batchStatus[batchNumber] == 0, "Already requested");
         // requesting randomness
         requestId = requestRandomness(s_keyHash, s_fee);
 
         // storing requestId
-        batchToSeedRequest[batchNumber] = requestId;
+        requestIdToBatch[requestId] = batchNumber;
+        batchStatus[batchNumber] = 1;
     }
 
-    mapping(bytes32 => uint) public requestIdToSeed;
+    mapping(uint => uint) public batchToSeed;
     function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
-        // 8.636168555094445e-76% chance that randomness is 0, if that happens we are rekt
-        // we are already gambling with these chances when writing values to storage so we'll just take the gamble
-        requestIdToSeed[requestId] = randomness;
+        uint batchNumber = requestIdToBatch[requestId];
+        batchToSeed[batchNumber] = randomness % TOKEN_LIMIT;
+        batchStatus[batchNumber] = 2;
     }
 
     uint lastTokenRevealed = 0;
-    mapping(uint=>uint) redirect;
     function shuffleIndexes(uint batchNumber) public onlyRealOwner{
         require(lastTokenRevealed == (batchNumber * REVEAL_BATCH_SIZE), "batches must be shuffled in order");
-        uint randomSeed = requestIdToSeed[batchToSeedRequest[batchNumber]];
-        require(randomSeed != 0, "wait for fulfillRandomness()");
-        for(uint i=lastTokenRevealed; i<(lastTokenRevealed + REVEAL_BATCH_SIZE); i++){
-            uint seed = uint(keccak256(abi.encodePacked(i, randomSeed)));
-            uint index = randomIndex(seed, i);
-            redirect[i] = index;
-        }
+        require(batchStatus[batchNumber] == 2, "wait for fulfillRandomness()");
         lastTokenRevealed += REVEAL_BATCH_SIZE;
     }
 
@@ -149,33 +144,34 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
         if(id > lastTokenRevealed){
             return unrevealedURI;
         } else {
-            return string(abi.encodePacked(baseURI, redirect[id].toString()));
+            uint batch = id/REVEAL_BATCH_SIZE;
+            return string(abi.encodePacked(baseURI, getShuffledTokenId(id, batch).toString()));
         }
     }
 
-    // Forked from meebits (https://etherscan.io/address/0x7bd29408f11d2bfc23c34f18275bbf23bb716bc7#code)
-    // OPTIMIZATION: We can lower gas costs paid by us by doing all the shuffling server-side while keeping it verifiable,
-    // but we do it on-chain because it's more trustless
-    uint[TOKEN_LIMIT] internal indices;
-    function randomIndex(uint seed, uint numTokens) internal returns (uint) {
-        uint totalSize = TOKEN_LIMIT - numTokens;
-        uint index = seed % totalSize;
-        uint value = 0;
-        if (indices[index] != 0) {
-            value = indices[index];
-        } else {
-            value = index;
+    function getShuffledTokenId(uint id, uint batch) view private returns (uint) {
+        uint finalId = id;
+        uint randomSeed = batchToSeed[batch];
+        finalId = (finalId + randomSeed) % TOKEN_LIMIT;
+        bool[TOKEN_LIMIT/REVEAL_BATCH_SIZE] memory checkedBatches;
+        for(uint i=0; i<batch; i++){
+            for(uint j=0; j<batch; j++){
+                if(checkedBatches[j] == false){
+                    uint batchSeed = batchToSeed[j];
+                    if(batchSeed < finalId && finalId < (batchSeed + REVEAL_BATCH_SIZE)){
+                        finalId = (finalId + REVEAL_BATCH_SIZE) % TOKEN_LIMIT;
+                        checkedBatches[j] = true;
+                    }
+                    if(finalId < REVEAL_BATCH_SIZE && batchSeed > (TOKEN_LIMIT - REVEAL_BATCH_SIZE)){
+                        uint end = (batchSeed + REVEAL_BATCH_SIZE) % TOKEN_LIMIT;
+                        if(finalId < end){
+                            finalId = (finalId + REVEAL_BATCH_SIZE) % TOKEN_LIMIT;
+                            checkedBatches[j] = true;
+                        }
+                    }
+                }
+            }
         }
-
-        // Move last value to selected position
-        if (indices[totalSize - 1] == 0) {
-            // Array position not initialized, so use position
-            indices[index] = totalSize - 1;
-        } else {
-            // Array position holds a value so use that
-            indices[index] = indices[totalSize - 1];
-        }
-        // Don't allow a zero index, start counting at 1 -> NOT NEEDED
-        return value;
+        return finalId;
     }
 }

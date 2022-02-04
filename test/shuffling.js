@@ -64,6 +64,16 @@ describe("Shuffling", function () {
     const requestId = await tubbies.batchToSeedRequest(0)
     await mockCoordinator.sendRandom(tubbies.address, requestId, 46)
     await tubbies.shuffleIndexes(0)
+
+    for(let i = 1500; i<20e3; i+=20){
+      await tubbies.mintFromSale(20, {value: ethers.utils.parseEther("2")})
+    }
+    for(let i=1; i<20; i++){
+      await tubbies.requestRandomSeed(0, ethers.utils.parseEther("2"))
+      const requestId = await tubbies.batchToSeedRequest(i)
+      await mockCoordinator.sendRandom(tubbies.address, requestId, 46)
+      await tubbies.shuffleIndexes(i)
+    }
   });
 });
 
