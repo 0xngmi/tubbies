@@ -127,7 +127,8 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
     mapping(uint => uint) public batchToSeed;
     function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
         uint batchNumber = requestIdToBatch[requestId];
-        batchToSeed[batchNumber] = randomness % TOKEN_LIMIT;
+        // not perfectly random since the folding doesn't match bounds perfectly, but difference is small
+        batchToSeed[batchNumber] = randomness % (TOKEN_LIMIT - (batchNumber*REVEAL_BATCH_SIZE));
         batchStatus[batchNumber] = 2;
     }
 
@@ -208,8 +209,8 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
         Range[RANGE_LENGTH] memory ranges;
         uint lastIndex = 0;
         for(uint i=0; i<lastBatch; i++){
-            int128 start = int128(int(batchToSeed[i]));
-            int128 end = int128(int(batchToSeed[i] + REVEAL_BATCH_SIZE));
+            int128 start = int128(int(getFreeTokenId(batchToSeed[i], ranges)));
+            int128 end = start + int128(int(REVEAL_BATCH_SIZE));
             lastIndex = addRange(ranges, start, end, lastIndex);
         }
         return ranges;
@@ -217,8 +218,13 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
 
     function getShuffledTokenId(uint startId, uint batch) view private returns (uint) {
         Range[RANGE_LENGTH] memory ranges = buildJumps(batch);
-        int128 positionsToMove = int128(int(startId % REVEAL_BATCH_SIZE));
-        int128 id = int128(int(batchToSeed[batch]));
+        uint positionsToMove = (startId % REVEAL_BATCH_SIZE) + batchToSeed[batch];
+        return getFreeTokenId(positionsToMove, ranges);
+    }
+
+    function getFreeTokenId(uint positionsToMoveStart, Range[RANGE_LENGTH] memory ranges) pure private returns (uint) {
+        int128 positionsToMove = int128(int(positionsToMoveStart));
+        int128 id = 0;
 
         for(uint round = 0; round<2; round++){
             for(uint i=0; i<RANGE_LENGTH; i++){
@@ -237,10 +243,9 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
                 }
             }
             if((id + positionsToMove) >= intTOKEN_LIMIT){
-                positionsToMove -= (intTOKEN_LIMIT - id) + 1;
+                positionsToMove -= intTOKEN_LIMIT - id;
                 id = 0;
             }
-            id = id % intTOKEN_LIMIT;
         }
         return uint(uint128(id + positionsToMove));
     }
