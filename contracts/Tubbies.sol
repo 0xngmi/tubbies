@@ -122,10 +122,12 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
         }
         require(msg.value == cost, "wrong payment");
         unchecked {
+            uint currentTotal = totalMinted;
             for(uint i = 0; i<tubbiesToMint; i++){
-                _mint(msg.sender, totalMinted);
-                totalMinted++; // OPTIMIZE: Use memory variable?
+                _mint(msg.sender, currentTotal);
+                currentTotal++;
             }
+            totalMinted = currentTotal;
         }
         require(totalMinted <= TOKEN_LIMIT, "limit reached");
     }
