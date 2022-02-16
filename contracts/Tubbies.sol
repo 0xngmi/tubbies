@@ -115,7 +115,7 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
 
     function mintFromSale(uint tubbiesToMint) public payable {
         require(block.timestamp > startSaleTimestamp, "Public sale hasn't started yet");
-        require(tubbiesToMint <= 20, "Only up to 20 tubbies can be minted at once");
+        require(tubbiesToMint <= 5, "Only up to 5 tubbies can be minted at once");
         uint cost;
         unchecked {
             cost = tubbiesToMint * 0.1 ether;
