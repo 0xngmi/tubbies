@@ -106,11 +106,13 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
         require(claimed[msg.sender] == false, "already claimed");
         claimed[msg.sender] = true;
         require(msg.value == 0.1 ether, "wrong payment");
-        _mint(msg.sender, totalMinted);
+        uint total = totalMinted;
+        _mint(msg.sender, total);
         unchecked {
-            totalMinted++; // Can't overflow
+            total++; // Can't overflow
         }
-        require(totalMinted <= TOKEN_LIMIT, "limit reached");
+        require(total <= TOKEN_LIMIT, "limit reached");
+        totalMinted = total;
     }
 
     function mintFromSale(uint tubbiesToMint) public payable {
