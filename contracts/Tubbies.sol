@@ -137,6 +137,7 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
     // Can be made callable by everyone but restricting to onlyRealOwner for extra security
     // batchNumber belongs to [0, TOKEN_LIMIT/REVEAL_BATCH_SIZE]
     // if fee is incorrect chainlink's coordinator will just revert the tx so it's good
+    mapping(uint => bytes32) public batchToSeedRequest; // Just for testing TODO delete
     function requestRandomSeed(uint batchNumber, uint s_fee) public onlyRealOwner returns (bytes32 requestId) {
         require(totalMinted >= (batchNumber + 1) * REVEAL_BATCH_SIZE); // TEST: It works on the last mint
 
@@ -150,6 +151,7 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
         // storing requestId
         requestIdToBatch[requestId] = batchNumber;
         batchStatus[batchNumber] = 1;
+        batchToSeedRequest[batchNumber] = requestId; //TODO delete
     }
 
     mapping(uint => uint) public batchToSeed;

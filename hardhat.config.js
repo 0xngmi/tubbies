@@ -22,11 +22,13 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 module.exports = {
   solidity: "0.8.4",
   networks: {
+/*
     hardhat: {
       forking: {
         url: process.env.RPC
       }
     },
+*/
     mainnet: {
       url: process.env.RPC,
       accounts: [process.env.PRIVATEKEY]
@@ -35,8 +37,4 @@ module.exports = {
   etherscan: {
     apiKey: process.env.ETHERSCAN
   },
-  gasReporter: {
-    currency: 'USD',
-    gasPrice: 100
-  }
 };
