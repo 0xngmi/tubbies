@@ -46,7 +46,7 @@ contract Tubbies is ERC721A, MultisigOwnable, VRFConsumerBase, BatchReveal {
     string public baseURI;
     string public unrevealedURI;
     bool public finalized = false;
-    bool public useFancyMath = false;
+    bool public useFancyMath = true;
 
     // Constants from https://docs.chain.link/docs/vrf-contracts/
     bytes32 immutable private s_keyHash;
