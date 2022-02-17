@@ -147,7 +147,7 @@ contract Tubbies is ERC721A, MultisigOwnable, VRFConsumerBase, BatchReveal {
     // OPTIMIZATION: No need for numbers to be readable, so this could be optimized
     // but gas cost here doesn't matter so we go for the standard approach
     function tokenURI(uint256 id) public view override returns (string memory) {
-        if(id > lastTokenRevealed){
+        if(id >= lastTokenRevealed){
             return unrevealedURI;
         } else {
             uint batch = id/REVEAL_BATCH_SIZE;
