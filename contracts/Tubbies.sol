@@ -45,6 +45,8 @@ contract Tubbies is ERC721A, MultisigOwnable, VRFConsumerBase, BatchReveal {
     uint immutable public startSaleTimestamp;
     string public baseURI;
     string public unrevealedURI;
+    bool public finalized = false;
+    bool public useFancyMath = false;
 
     // Constants from https://docs.chain.link/docs/vrf-contracts/
     bytes32 immutable private s_keyHash;
@@ -64,9 +66,12 @@ contract Tubbies is ERC721A, MultisigOwnable, VRFConsumerBase, BatchReveal {
         baseURI = _baseURI;
     }
 
-    function setURIs(string memory newBaseURI, string memory newUnrevealedURI) external onlyRealOwner {
+    function setParams(string memory newBaseURI, string memory newUnrevealedURI, bool newFinal, bool newUseFancyMath) external onlyRealOwner {
+        require(finalized == false, "final");
         baseURI = newBaseURI;
         unrevealedURI = newUnrevealedURI;
+        finalized = newFinal;
+        useFancyMath = newUseFancyMath;
     }
 
     function retrieveFunds(address payable to) external onlyRealOwner {
@@ -135,6 +140,9 @@ contract Tubbies is ERC721A, MultisigOwnable, VRFConsumerBase, BatchReveal {
     // OPTIMIZATION: No need for numbers to be readable, so this could be optimized
     // but gas cost here doesn't matter so we go for the standard approach
     function tokenURI(uint256 id) public view override returns (string memory) {
+        if(!useFancyMath){
+            return string(abi.encodePacked(baseURI, id.toString()));
+        }
         if(id >= lastTokenRevealed){
             return unrevealedURI;
         } else {

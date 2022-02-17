@@ -16,7 +16,7 @@ describe("MultisigOwnable", function () {
             tubbies.connect(owner).retrieveFunds(msig.address)
         ).to.be.revertedWith(msigError);
         await expect(
-            tubbies.connect(owner).setURIs("b", "c")
+            tubbies.connect(owner).setParams("b", "c", false, false)
         ).to.be.revertedWith(msigError);
         await expect(
             tubbies.connect(attacker).retrieveFunds(msig.address)
@@ -39,5 +39,13 @@ describe("MultisigOwnable", function () {
         await expect(
             tubbies.connect(msig).retrieveFunds(msig.address)
         ).to.be.revertedWith(msigError);
+    })
+
+    it("finalization works", async ()=>{
+        const { tubbies } = await getContract({})
+        await tubbies.setParams("x", "y", true, true);
+        await expect(
+            tubbies.setParams("x", "y", true, true)
+        ).to.be.revertedWith("final");
     })
 })
