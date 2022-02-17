@@ -16,10 +16,9 @@ async function mint(tubbies, amount){
 }
 
 async function revealBatch(tubbies, mockCoordinator, i, randomvalue){
-  await tubbies.requestRandomSeed(i, ethers.utils.parseEther("0.5"))
-  const requestId = await tubbies.batchToSeedRequest(i)
+  await tubbies.requestRandomSeed(ethers.utils.parseEther("0.5"))
+  const requestId = "0x5ca28f7c92f8adc821003b5d761ae77281bb1525e382c7605d9b081262b2d534"; // random bytes32
   await mockCoordinator.sendRandom(tubbies.address, requestId, randomvalue)
-  await tubbies.shuffleIndexes(i)
 }
 
 describe("Shuffling", function () {

@@ -108,40 +108,28 @@ contract Tubbies is ERC721A, MultisigOwnable, VRFConsumerBase, BatchReveal {
 
     // RANDOMIZATION
 
-    mapping(bytes32 => uint) public requestIdToBatch;
-    mapping(uint => uint8) public batchStatus; // 0 -> unrequested, 1 -> requested, 2 -> received
+    uint public lastTokenRevealed = 0;
     // Can be made callable by everyone but restricting to onlyRealOwner for extra security
     // batchNumber belongs to [0, TOKEN_LIMIT/REVEAL_BATCH_SIZE]
     // if fee is incorrect chainlink's coordinator will just revert the tx so it's good
-    mapping(uint => bytes32) public batchToSeedRequest; // Just for testing TODO delete
-    function requestRandomSeed(uint batchNumber, uint s_fee) public onlyRealOwner returns (bytes32 requestId) {
-        require(totalSupply() >= (batchNumber + 1) * REVEAL_BATCH_SIZE);
+    function requestRandomSeed(uint s_fee) public onlyRealOwner returns (bytes32 requestId) {
+        require(totalSupply() >= (lastTokenRevealed + REVEAL_BATCH_SIZE), "totalSupply too low");
 
         // checking LINK balance
         require(IERC20(linkToken).balanceOf(address(this)) >= s_fee, "Not enough LINK to pay fee");
 
-        require(batchStatus[batchNumber] == 0, "Already requested");
         // requesting randomness
         requestId = requestRandomness(s_keyHash, s_fee);
-
-        // storing requestId
-        requestIdToBatch[requestId] = batchNumber;
-        batchStatus[batchNumber] = 1;
-        batchToSeedRequest[batchNumber] = requestId; //TODO delete
     }
 
-    function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
-        uint batchNumber = requestIdToBatch[requestId];
+    function fulfillRandomness(bytes32, uint256 randomness) internal override {
+        require(totalSupply() >= (lastTokenRevealed + REVEAL_BATCH_SIZE), "totalSupply too low");
+        uint batchNumber = lastTokenRevealed/REVEAL_BATCH_SIZE;
         // not perfectly random since the folding doesn't match bounds perfectly, but difference is small
         batchToSeed[batchNumber] = randomness % (TOKEN_LIMIT - (batchNumber*REVEAL_BATCH_SIZE));
-        batchStatus[batchNumber] = 2;
-    }
-
-    uint lastTokenRevealed = 0;
-    function shuffleIndexes(uint batchNumber) public onlyRealOwner{
-        require(lastTokenRevealed == (batchNumber * REVEAL_BATCH_SIZE), "batches must be shuffled in order");
-        require(batchStatus[batchNumber] == 2, "wait for fulfillRandomness()");
-        lastTokenRevealed += REVEAL_BATCH_SIZE;
+        unchecked {
+            lastTokenRevealed += REVEAL_BATCH_SIZE;
+        }
     }
 
     // OPTIMIZATION: No need for numbers to be readable, so this could be optimized
