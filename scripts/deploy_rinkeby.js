@@ -14,7 +14,7 @@ async function main() {
   );
 
   await tubbies.deployed();
-  console.log("Deployed to:", tubbies.address);
+  console.log("Deployed to:", tubbies.address, "merkle root:", root);
 }
 
 main()
