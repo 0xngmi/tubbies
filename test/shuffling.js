@@ -3,9 +3,6 @@ const { ethers } = require("hardhat");
 const { getContract, deployMockContract } = require('./utils')
 
 const DAY = 3600*24;
-const linkToken = "0x514910771AF9Ca656af840dff83E8264EcF986CA";
-const linkCoordinator = "0xf0d54349aDdcf704F77AE15b96510dEA15cb7952";
-
 const MAX_MINT = 5;
 
 async function mint(tubbies, amount){
@@ -16,6 +13,13 @@ async function mint(tubbies, amount){
     )
   }
   await Promise.all(txs);
+}
+
+async function revealBatch(tubbies, mockCoordinator, i, randomvalue){
+  await tubbies.requestRandomSeed(i, ethers.utils.parseEther("0.5"))
+  const requestId = await tubbies.batchToSeedRequest(i)
+  await mockCoordinator.sendRandom(tubbies.address, requestId, randomvalue)
+  await tubbies.shuffleIndexes(i)
 }
 
 describe("Shuffling", function () {
@@ -53,7 +57,6 @@ describe("Shuffling", function () {
 
   it("max mint", async function () {
     this.timeout(100000);
-    const [signer] = await ethers.getSigners();
     // Can't impersonate mainnet contracts because of a weird issue with sending txs
     const mockLink = await deployMockContract("MockLinkToken")
     const mockCoordinator = await deployMockContract("MockChainlinkCoordinator")
@@ -64,28 +67,37 @@ describe("Shuffling", function () {
     await network.provider.send("evm_increaseTime", [2*DAY])
     await network.provider.send("evm_mine")
 
-    const totalMinted = (await tubbies.totalMinted()).toNumber()
     await mint(tubbies, 1.5e3);
     expect(await tubbies.totalMinted()).to.equal(1500);
 
-    await mockLink.transfer(tubbies.address, ethers.utils.parseEther("2000"))
-
-    await tubbies.requestRandomSeed(0, ethers.utils.parseEther("0.5"))
-    const requestId = await tubbies.batchToSeedRequest(0)
-    await mockCoordinator.sendRandom(tubbies.address, requestId, 46)
-    await tubbies.shuffleIndexes(0)
-
     await mint(tubbies, 20e3-1.5e3);
+    await mockLink.transfer(tubbies.address, ethers.utils.parseEther("2000"))
     await expect(
       tubbies.mintFromSale(1, {value: ethers.utils.parseEther("0.1")})
     ).to.be.revertedWith("limit reached");
-    for(let i=1; i<20; i++){
-      await tubbies.requestRandomSeed(i, ethers.utils.parseEther("0.5"))
-      const requestId = await tubbies.batchToSeedRequest(i)
-      await mockCoordinator.sendRandom(tubbies.address, requestId, 46)
-      await tubbies.shuffleIndexes(i)
+
+    expect(await tubbies.tokenURI(20e3-1)).to.equal("b");
+    const snapshot = await network.provider.send("evm_snapshot")
+    for(let i=0; i<20; i++){
+      await revealBatch(tubbies, mockCoordinator, i, 46)
     }
-    console.log("1", await tubbies.tokenURI(2e4-1))
+    expect(await tubbies.tokenURI(20e3-1)).to.equal("45");
+    expect(await tubbies.tokenURI(0)).to.equal("46");
+    for(let i=0; i<20e3; i+=500){
+      expect(await tubbies.tokenURI(i)).to.equal((i+46).toString());
+    }
+    await network.provider.send("evm_revert", [snapshot])
+    for(let i=0; i<20; i++){
+      await revealBatch(tubbies, mockCoordinator, i, Math.round(Math.random()*40e3))
+    }
+    const ids = {}
+    await Promise.all(Array.from(Array(20e3).keys()).map(async i=>{
+      const newId = await tubbies.tokenURI(i)
+      if(ids[newId] !== undefined){
+        throw new Error(`${i} -> ${newId} repeated`)
+      }
+      ids[newId] = i
+    }))
   });
 });
 

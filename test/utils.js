@@ -2,7 +2,7 @@ const { ethers } = require("hardhat");
 
 async function getContract({
     merkleRoot= "0x5ca28f7c92f8adc821003b5d761ae77281bb1525e382c7605d9b081262b2d534", // sample
-    baseURI="a",
+    baseURI="",
     unrevealedURI="b",
     // mainnet params
     s_keyHash="0xAA77729D3466CA35AE8D28B3BBAC7CC36A5031EFDC430821C02BC31A238AF445",
