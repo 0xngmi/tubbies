@@ -1,6 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
-const { getContract } = require('./utils')
+const { getContract } = require('../scripts/utils')
 
 const msigError = 'MultisigOwnable: caller is not the real owner'
 

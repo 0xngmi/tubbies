@@ -1,6 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
-const { getContract, deployMockContract } = require('./utils')
+const { getContract, deployMockContract } = require('../scripts/utils')
 
 const DAY = 3600*24;
 const MAX_MINT = 5;

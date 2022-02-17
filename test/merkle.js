@@ -1,6 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
-const { getContract, buildTreeAndProof } = require('./utils')
+const { getContract, buildTreeAndProof } = require('../scripts/utils')
 
 describe("Merkle tree", function () {
     it("tree is constructed properly", async function () {
