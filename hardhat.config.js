@@ -32,7 +32,11 @@ module.exports = {
     mainnet: {
       url: process.env.RPC,
       accounts: [process.env.PRIVATEKEY]
-    }
+    },
+    rinkeby: {
+      url: process.env.RINKEBY_RPC,
+      accounts: [process.env.PRIVATEKEY]
+    },
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN
