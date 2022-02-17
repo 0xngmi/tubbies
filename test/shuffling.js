@@ -68,14 +68,16 @@ describe("Shuffling", function () {
     await network.provider.send("evm_mine")
 
     await mint(tubbies, 1.5e3);
-    expect(await tubbies.totalMinted()).to.equal(1500);
+    expect(await tubbies.totalSupply()).to.equal(1500);
 
     await mint(tubbies, 20e3-1.5e3);
     await mockLink.transfer(tubbies.address, ethers.utils.parseEther("2000"))
     await expect(
       tubbies.mintFromSale(1, {value: ethers.utils.parseEther("0.1")})
     ).to.be.revertedWith("limit reached");
+    expect(await tubbies.totalSupply()).to.equal(20e3);
 
+    expect(await tubbies.tokenURI(0)).to.equal("b");
     expect(await tubbies.tokenURI(20e3-1)).to.equal("b");
     const snapshot = await network.provider.send("evm_snapshot")
     for(let i=0; i<20; i++){
@@ -86,6 +88,7 @@ describe("Shuffling", function () {
     for(let i=0; i<20e3; i+=500){
       expect(await tubbies.tokenURI(i)).to.equal((i+46).toString());
     }
+    /*
     await network.provider.send("evm_revert", [snapshot])
     for(let i=0; i<20; i++){
       await revealBatch(tubbies, mockCoordinator, i, Math.round(Math.random()*40e3))
@@ -98,6 +101,7 @@ describe("Shuffling", function () {
       }
       ids[newId] = i
     }))
+    */
   });
 });
 

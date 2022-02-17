@@ -1,12 +1,12 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.4;
 
-import "@rari-capital/solmate/src/tokens/ERC721.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./MultisigOwnable.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "./ERC721A.sol";
 
 /*
 :::::::::::::::::::::::::::::ヽヽヽヽ:::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -36,7 +36,8 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 ::::::::::::::::::/                               :::::ヽ::::::::::::::::::::::::::::::::::
 */
 
-contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
+// IMPORTANT: _burn() must never be called
+contract Tubbies is ERC721A, MultisigOwnable, VRFConsumerBase {
     using Strings for uint256;
 
     uint constant public TOKEN_LIMIT = 20e3;
@@ -52,7 +53,7 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
     address immutable private linkCoordinator;
 
     constructor(bytes32 _merkleRoot, string memory _baseURI, string memory _unrevealedURI, bytes32 _s_keyHash, address _linkToken, address _linkCoordinator)
-        ERC721("Tubby Cats", "TUBBY")
+        ERC721A("Tubby Cats", "TUBBY")
         VRFConsumerBase(_linkCoordinator, _linkToken)
     {
         linkToken = _linkToken;
@@ -75,21 +76,6 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
 
     // SALE
 
-    function _mint(address to, uint256 id) internal override {
-        // Impossible
-        //require(to != address(0), "INVALID_RECIPIENT");
-        //require(ownerOf[id] == address(0), "ALREADY_MINTED");
-
-        // Counter overflow is incredibly unrealistic.
-        unchecked {
-            balanceOf[to]++;
-        }
-
-        ownerOf[id] = to;
-
-        emit Transfer(address(0), to, id);
-    }
-
     function toBytes32(address addr) pure internal returns (bytes32){
         return bytes32(uint256(uint160(addr)));
     }
@@ -100,17 +86,13 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
     // unbalanced trees, but here we protect against them by checking against msg.sender and only allowing each account to claim once
     // See https://github.com/miguelmota/merkletreejs#notes for more info
     mapping(address=>bool) public claimed;
-    uint public totalMinted = 0;
     function mint(bytes32[] calldata _merkleProof) public payable {
         require(MerkleProof.verify(_merkleProof, merkleRoot, toBytes32(msg.sender)) == true, "wrong merkle proof");
         require(claimed[msg.sender] == false, "already claimed");
         claimed[msg.sender] = true;
         require(msg.value == 0.1 ether, "wrong payment");
-        _mint(msg.sender, totalMinted);
-        unchecked {
-            totalMinted++; // Can't overflow
-        }
-        require(totalMinted <= TOKEN_LIMIT, "limit reached");
+        _mint(msg.sender, 1, '', false);
+        require(totalSupply() <= TOKEN_LIMIT, "limit reached");
     }
 
     function mintFromSale(uint tubbiesToMint) public payable {
@@ -121,13 +103,8 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
             cost = tubbiesToMint * 0.1 ether;
         }
         require(msg.value == cost, "wrong payment");
-        unchecked {
-            for(uint i = 0; i<tubbiesToMint; i++){
-                _mint(msg.sender, totalMinted);
-                totalMinted++; // OPTIMIZE: Use memory variable?
-            }
-        }
-        require(totalMinted <= TOKEN_LIMIT, "limit reached");
+        _mint(msg.sender, tubbiesToMint, '', false);
+        require(totalSupply() <= TOKEN_LIMIT, "limit reached");
     }
 
     // RANDOMIZATION
@@ -139,7 +116,7 @@ contract Tubbies is ERC721, MultisigOwnable, VRFConsumerBase {
     // if fee is incorrect chainlink's coordinator will just revert the tx so it's good
     mapping(uint => bytes32) public batchToSeedRequest; // Just for testing TODO delete
     function requestRandomSeed(uint batchNumber, uint s_fee) public onlyRealOwner returns (bytes32 requestId) {
-        require(totalMinted >= (batchNumber + 1) * REVEAL_BATCH_SIZE); // TEST: It works on the last mint
+        require(totalSupply() >= (batchNumber + 1) * REVEAL_BATCH_SIZE);
 
         // checking LINK balance
         require(IERC20(linkToken).balanceOf(address(this)) >= s_fee, "Not enough LINK to pay fee");
