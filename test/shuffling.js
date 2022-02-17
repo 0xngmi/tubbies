@@ -15,6 +15,20 @@ async function mint(tubbies, amount){
   await Promise.all(txs);
 }
 
+async function setupForSale(){
+  // Can't impersonate mainnet contracts because of a weird issue with sending txs
+  const mockLink = await deployMockContract("MockLinkToken")
+  const mockCoordinator = await deployMockContract("MockChainlinkCoordinator")
+  const {tubbies} = await getContract({
+    linkToken:mockLink.address,
+    linkCoordinator: mockCoordinator.address
+  })
+  await network.provider.send("evm_increaseTime", [2*DAY])
+  await network.provider.send("evm_mine")
+  await mockLink.transfer(tubbies.address, ethers.utils.parseEther("2000"))
+  return {mockCoordinator, mockLink, tubbies}
+}
+
 async function revealBatch(tubbies, mockCoordinator, i, randomvalue){
   await tubbies.requestRandomSeed(ethers.utils.parseEther("0.5"))
   const requestId = "0x5ca28f7c92f8adc821003b5d761ae77281bb1525e382c7605d9b081262b2d534"; // random bytes32
@@ -54,23 +68,46 @@ describe("Shuffling", function () {
     ).to.be.revertedWith("wrong payment");
   })
 
+  /*
+    Needs the following changes in BatchReveal.sol or it'll take forever
+    TOKEN_LIMIT = 200;
+    REVEAL_BATCH_SIZE = 10;
+  */
+  it("no id is repeated and tokenURIs stay constant", async function () {
+    this.timeout(1000000);
+    const {mockCoordinator, tubbies} = await setupForSale()
+
+    const TOKEN_LIMIT = await tubbies.TOKEN_LIMIT()
+    const REVEAL_BATCH_SIZE = await tubbies.REVEAL_BATCH_SIZE()
+    const BATCHES = TOKEN_LIMIT/REVEAL_BATCH_SIZE
+    await mint(tubbies, TOKEN_LIMIT);
+    const ids = {}
+    for(let batch=0; batch<BATCHES; batch++){
+      const random =  Math.round(Math.random()*40e3)
+      await revealBatch(tubbies, mockCoordinator, batch, random)
+      await Promise.all(Array.from(Array((batch+1)*REVEAL_BATCH_SIZE).keys()).map(async i=>{
+        const newId = await tubbies.tokenURI(i)
+        if(ids[newId] === undefined){
+          // new id
+          ids[newId] = i
+          return
+        }
+        if(ids[newId] !== i){
+          throw new Error(`${i} -> ${newId} repeated`)
+        }
+      }))
+      console.log(batch, ids, random)
+    }
+  })
+
   it("max mint", async function () {
     this.timeout(100000);
-    // Can't impersonate mainnet contracts because of a weird issue with sending txs
-    const mockLink = await deployMockContract("MockLinkToken")
-    const mockCoordinator = await deployMockContract("MockChainlinkCoordinator")
-    const {tubbies} = await getContract({
-      linkToken:mockLink.address,
-      linkCoordinator: mockCoordinator.address
-    })
-    await network.provider.send("evm_increaseTime", [2*DAY])
-    await network.provider.send("evm_mine")
+    const {mockCoordinator, tubbies} = await setupForSale()
 
     await mint(tubbies, 1.5e3);
     expect(await tubbies.totalSupply()).to.equal(1500);
 
     await mint(tubbies, 20e3-1.5e3);
-    await mockLink.transfer(tubbies.address, ethers.utils.parseEther("2000"))
     await expect(
       tubbies.mintFromSale(1, {value: ethers.utils.parseEther("0.1")})
     ).to.be.revertedWith("limit reached");
@@ -87,36 +124,5 @@ describe("Shuffling", function () {
     for(let i=0; i<20e3; i+=500){
       expect(await tubbies.tokenURI(i)).to.equal((i+46).toString());
     }
-    /*
-    await network.provider.send("evm_revert", [snapshot])
-    for(let i=0; i<20; i++){
-      await revealBatch(tubbies, mockCoordinator, i, Math.round(Math.random()*40e3))
-    }
-    const ids = {}
-    await Promise.all(Array.from(Array(20e3).keys()).map(async i=>{
-      const newId = await tubbies.tokenURI(i)
-      if(ids[newId] !== undefined){
-        throw new Error(`${i} -> ${newId} repeated`)
-      }
-      ids[newId] = i
-    }))
-    */
   });
 });
-
-/*
-await network.provider.request({
-      method: "hardhat_impersonateAccount",
-      params: [linkCoordinator],
-    });
-    const coordinator = await ethers.provider.getSigner(
-      linkCoordinator
-    );
-const linkTokenContract = new ethers.Contract(
-  linkToken,
-  [
-    "function transfer(address to, uint amount) external"
-  ],
-  coordinator
-)
-*/
