@@ -147,7 +147,7 @@ contract Tubbies is ERC721A, MultisigOwnable, VRFConsumerBase, BatchReveal {
             return unrevealedURI;
         } else {
             uint batch = id/REVEAL_BATCH_SIZE;
-            return string(abi.encodePacked(baseURI, getShuffledTokenId(id, batch).toString()));
+            return string(abi.encodePacked(baseURI, getShuffledTokenId(id, batch).toString(), ".json"));
         }
     }
 }
