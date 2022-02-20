@@ -19,3 +19,4 @@ npx hardhat verify --network rinkeby 0xCa7cA7BcC765F77339bE2d648BA53ce9c8a262bD 
 - [x] Ownership
 - [ ] Deployment on testnet
 - [ ] Merkle + full minting
+

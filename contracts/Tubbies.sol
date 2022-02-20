@@ -47,13 +47,14 @@ contract Tubbies is ERC721A, MultisigOwnable, VRFConsumerBase, BatchReveal {
     string public unrevealedURI;
     bool public finalized = false;
     bool public useFancyMath = true;
+    bool public airdropped = false;
 
     // Constants from https://docs.chain.link/docs/vrf-contracts/
     bytes32 immutable private s_keyHash;
     address immutable private linkToken;
     address immutable private linkCoordinator;
 
-    constructor(bytes32 _merkleRoot, string memory _baseURI, string memory _unrevealedURI, bytes32 _s_keyHash, address _linkToken, address _linkCoordinator, address[] memory airdrops)
+    constructor(bytes32 _merkleRoot, string memory _baseURI, string memory _unrevealedURI, bytes32 _s_keyHash, address _linkToken, address _linkCoordinator)
         ERC721A("Tubby Cats", "TUBBY")
         VRFConsumerBase(_linkCoordinator, _linkToken)
     {
@@ -64,9 +65,14 @@ contract Tubbies is ERC721A, MultisigOwnable, VRFConsumerBase, BatchReveal {
         startSaleTimestamp = block.timestamp + 2 days;
         unrevealedURI = _unrevealedURI;
         baseURI = _baseURI;
+    }
+
+    function airdrop(address[] memory airdrops) external onlyRealOwner{
+        require(airdropped == false, "already airdropped");
         for(uint i=0; i<airdrops.length; i++){
             _mint(airdrops[i], 1, '', false);
         }
+        airdropped = true;
     }
 
     function setParams(string memory newBaseURI, string memory newUnrevealedURI, bool newFinal, bool newUseFancyMath) external onlyRealOwner {
