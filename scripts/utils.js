@@ -12,7 +12,7 @@ async function getContract({
 ){
     const [signer] = await ethers.getSigners();
     const Tubbies = await hre.ethers.getContractFactory("Tubbies");
-    const tubbies = await Tubbies.deploy(merkleRoot, baseURI, unrevealedURI, s_keyHash,linkToken, linkCoordinator);
+    const tubbies = await Tubbies.deploy(merkleRoot, baseURI, unrevealedURI, s_keyHash,linkToken, linkCoordinator, []);
     await tubbies.deployed();
     return {tubbies, signer}
 }
