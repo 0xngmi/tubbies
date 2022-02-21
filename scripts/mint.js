@@ -1,7 +1,7 @@
 const hre = require("hardhat");
 const { NonceManager } = require("@ethersproject/experimental");
 
-const TO_MINT = 1e3;
+const TO_MINT = 10e3;
 const MAX_MINT = 5;
 const MAX_MINT_PER_CYCLE = 150;
 
@@ -15,7 +15,10 @@ async function main() {
         const txs = []
         for (let i = 0; i < MAX_MINT_PER_CYCLE; i += MAX_MINT) {
             txs.push(
-                tubbies.mintFromSale(MAX_MINT, { value: ethers.utils.parseEther("0.5") })
+                tubbies.mintFromSale(MAX_MINT, { 
+                    value: ethers.utils.parseEther("0.5"),
+                    gasLimit: 100e3,
+                })
             )
         }
         await Promise.all(txs);
