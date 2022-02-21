@@ -69,5 +69,38 @@ To avoid this, we'll pick a number in $[0, 10^4-10^3batch)$, and then we'll trav
 
 This mechanism has an asymptotic cost of $O(n^2)$ where $n$ is the number of batches that there are. Thus with 10 batches that number is 100, much lower than the 10k we were discussing earlier.
 
+## Biased randomness from VRF
+https://twitter.com/0xngmi/status/1493849106355269634
+
+## Information leak from using this mechanism
+Compared to an algorithm such as Fisher–Yates, both our algorithm and the simple offset by random leak certain information by making the relative ordering known in advance.
+
+Imagine that in the last batch there are 8 NFTs left and the distribution is like this:
+CCCCRRRR where C=common and R=rare
+and then you mint the 4th and 8th (00010001). Then you are guaranteed to get a rare NFT.
+
+If you minted 2 random ones on average you'd also have gotten 1 rare NFT, but could also have gotten 0 or 2, instead this minting mask exploits the inner order of the batch to ensure that you always get 1 rare (so less variance)
+
+This also applies to the NFT contracts that just do randomness by applying an offset, but it's easier to exploit if this algorithm is used because instead of there being 10k positions during the last batch there will only be 1k positions.
+
+Antebear also came up with a proof that Expected amount of rare NFTs stay constant with all minting orders, only thing that changes is variance:
+
+here issa proof bera tinks
+
+(assumin 10k cats an 10 batches, so 1k startin spots possibl) 
+
+let dat mask hav "n>0" non-0 spots. let da each remainin cats hav v_i value v_0 to v_999, wher sum o v_0 to v_999 = V, an v_a=V/1000.
+
+den dat implies dat if u had 1k parallel universes and did exaccly da mints across each o da 1k possibl startin spots, da sum o all total value 4 dis mask across 1000 parallel universes, divided by 1000, wud hav 2 b higher den n * v_a
+
+so wat is da "total" valu across dese 1000 parallel universes? Issa exactly n * V, since 4 erre "spot" da mask issa 1 (mint), over da 1000 universes dat means ERRE cat issa minted, so if der r "n" spots, den da TOTAL valu across da 1000 universes = n * V, so da avg value = n * V /1000 = n * v_a
+
+note dat n*v_a is exaccly da EV o da naive case (no mask)
+
+howevah note dat da "worst case cost o GUARANTEEIN A RARE" wit a mask atacc is <<<<<< "worst case cost o GUARANTEEIN a rare" in da truly random case
+(if u let R = numba o rares, den da "worst case cost o guaranteein a rare" wit mask attacc = n x MINT_COST whereas in da non-mask-attacc case issa (1000-R+1) x MINT_COST) 
+
+Credit: antebear
+
 ## Contribute
 Tubby cats is launching in a few days, if you'd like to contribute I'd really appreciate a review of [our contract](https://github.com/0xngmi/tubbies/blob/master/contracts/Tubbies.sol#L172)!
