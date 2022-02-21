@@ -1,12 +1,10 @@
 const hre = require("hardhat");
 const {buildTreeAndProof} = require('./utils')
 const airdrop = require('./airdrop.json')
+const wl = require('./wl.json')
 
 async function main() {
-  const {root} = buildTreeAndProof([
-      "0xcA9B80d1c17cD7551882dE80F34E2E58acE2264D",
-      "0x71a15Ac12ee91BF7c83D08506f3a3588143898B5"
-  ], "0x71a15Ac12ee91BF7c83D08506f3a3588143898B5")
+  const {root} = buildTreeAndProof(wl, wl[0])
   console.log("Merkle root:", root)
   const Tubbies = await hre.ethers.getContractFactory("Tubbies");
   const params = [
